@@ -1,0 +1,15 @@
+# Ignore Python virtual environment
+venv/
+
+# Ignore compiled Python files
+*.pyc
+
+# Ignore cache files
+__pycache__
+
+# Ignore log files
+*.log
+
+# Ignore sensitive or environment-specific files
+config.ini
+secrets.yaml

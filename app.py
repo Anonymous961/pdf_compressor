@@ -1,11 +1,11 @@
-from flask import Flask, request as req
+from flask import Flask, request as req , send_file
 from markupsafe import escape
 from werkzeug.utils import secure_filename
 import os
 import subprocess
 
 
-def compress_pdf(input_path, output_path, quality='screen'):
+def compress_pdf(input_path, output_path, quality='ebook'):
     """
     Compresses a PDF file using Ghostscript.
 
@@ -35,6 +35,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def hello_world():
+    # print("hello")
     return 'Hello World!'
 
 
@@ -67,9 +68,19 @@ def upload_file():
         return "No file selected", 400
     input_file_path = os.path.join("uploads",secure_filename(file.filename))
     output_file_path = os.path.join("uploads","compressed_"+secure_filename(file.filename))
-    file.save(file.filename)
-    message = compress_pdf(input_file_path , output_file_path)
+    file.save(input_file_path)
+
+    quality = req.form.get('quality', 'screen')
+    print("quality is ", quality)
+    message = compress_pdf(input_file_path , output_file_path, quality)
     return message
+
+@app.route('/download/<filename>', methods=['GET'])
+def download_file(filename):
+    try:
+        return send_file(os.path.join("uploads", filename), as_attachment=True)
+    except FileNotFoundError:
+        return "File not found", 404
 
 
 
