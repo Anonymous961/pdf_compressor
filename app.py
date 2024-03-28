@@ -3,7 +3,7 @@ from markupsafe import escape
 from werkzeug.utils import secure_filename
 import os
 import subprocess
-
+from pdf2docx import Converter
 
 def compress_pdf(input_path, output_path, quality='ebook'):
     """
@@ -30,13 +30,19 @@ def compress_pdf(input_path, output_path, quality='ebook'):
     subprocess.run(args)
     return "file compressed successfully"
 
+def convertpdftodoc(pdf_file, docx_file):
+    cv = Converter(pdf_file)
+    cv.convert(docx_file)  # all pages by default
+    cv.close()
+    return "file converted successfully"
+
 app = Flask(__name__)
 
 
 @app.route('/')
 def hello_world():
     # print("hello")
-    return 'Hello World!'
+    return {"message": "hello", "filename": "output_file_path"}
 
 
 @app.route("/user/<username>", methods=['POST'])
@@ -74,6 +80,24 @@ def upload_file():
     print("quality is ", quality)
     message = compress_pdf(input_file_path , output_file_path, quality)
     return message
+
+
+@app.route('/converttodoc',methods=["POST"])
+def convert_to_doc():
+    if 'file' not in req.files:
+        return "No files uploaded", 400
+    file = req.files['file']
+    if file.filename == '':
+        return "No file selected", 400
+    input_file_path = os.path.join("uploads", secure_filename(file.filename))
+    # print(file.filename)
+    filename, _ = os.path.splitext(secure_filename(file.filename))
+    output_file_path = os.path.join("uploads", "doc_" + filename + ".doc")
+    print(output_file_path)
+    file.save(input_file_path)
+    message = convertpdftodoc(input_file_path,output_file_path)
+    return message
+
 
 @app.route('/download/<filename>', methods=['GET'])
 def download_file(filename):
