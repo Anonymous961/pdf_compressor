@@ -1,4 +1,4 @@
-from flask import Flask, request as req , send_file
+from flask import Flask, request as req, send_file, jsonify
 from markupsafe import escape
 from werkzeug.utils import secure_filename
 import os
@@ -57,6 +57,7 @@ def compress_image(input_path, output_path, quality=85):
         print(f"Error compressing image: {e}")
 
 
+
 app = Flask(__name__)
 
 
@@ -74,6 +75,7 @@ def show_username(username):
         return "not proper method"
 
 
+#check file upload
 @app.route("/upload", methods=["POST"])
 def upload():
     if 'file' not in req.files:
@@ -86,6 +88,7 @@ def upload():
     return "File saved successfully!"
 
 
+#to compress file
 @app.route("/compresspdf", methods=['POST'])
 def upload_file():
     if 'file' not in req.files:
@@ -93,14 +96,18 @@ def upload_file():
     file = req.files['file']
     if file.filename == '':
         return "No file selected", 400
-    input_file_path = os.path.join("uploads",secure_filename(file.filename))
-    output_file_path = os.path.join("uploads","compressed_"+secure_filename(file.filename))
+    input_file_path = os.path.join("uploads", secure_filename(file.filename))
+    output_file = "compressed_" + secure_filename(file.filename)
+    output_file_path = os.path.join("uploads", output_file)
     file.save(input_file_path)
 
     quality = req.form.get('quality', 'screen')
     print("quality is ", quality)
-    message = compress_pdf(input_file_path , output_file_path, quality)
-    return message
+    message = compress_pdf(input_file_path, output_file_path, quality)
+    print(output_file_path)
+    print(output_file)
+    data = {"output_file": output_file, "message": message}
+    return jsonify(data)
 
 
 @app.route('/converttodoc',methods=["POST"])
@@ -136,6 +143,8 @@ def reduceImageSize():
     return message
 
 
+
+#to get any file
 @app.route('/download/<filename>', methods=['GET'])
 def download_file(filename):
     try:
