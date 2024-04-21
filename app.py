@@ -151,7 +151,9 @@ def reduceimagesize():
 @app.route('/download/<filename>', methods=['GET'])
 def download_file(filename):
     try:
-        return send_file(os.path.join("uploads", filename), as_attachment=True)
+        path = os.path.join("uploads", filename)
+
+        return send_file(path, as_attachment=True)
     except FileNotFoundError:
         return "File not found", 404
 
