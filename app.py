@@ -1,4 +1,4 @@
-from flask import Flask, request as req, send_file, jsonify
+from flask import Flask, request as req, send_file, jsonify, after_this_request
 from markupsafe import escape
 from werkzeug.utils import secure_filename
 import os
@@ -152,6 +152,19 @@ def reduceimagesize():
 def download_file(filename):
     try:
         path = os.path.join("uploads", filename)
+
+        @after_this_request
+        def removefile(response):
+
+            try:
+                original_file="uploads/"+filename.split("_")[1]
+                # print(original_file)
+                os.remove(original_file)
+                os.remove(path)
+                print("after this working")
+            except Exception as error:
+                app.logger.error("Error removing or closing downloaded file handle")
+            return response
 
         return send_file(path, as_attachment=True)
     except FileNotFoundError:
