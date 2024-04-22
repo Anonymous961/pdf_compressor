@@ -55,6 +55,7 @@ def compress_image(input_path, output_path, quality=85):
         return "image compressed successfully"
     except Exception as e:
         print(f"Error compressing image: {e}")
+        return "error compressing image"
 
 
 app = Flask(__name__)
@@ -119,8 +120,10 @@ def convert_to_doc():
     message = convertpdftodoc(input_file_path,output_file_path)
     return message
 
+
+
 @app.route("/compressimage",methods=['POST'])
-def reduceImageSize():
+def reduce_image_size():
     if 'file' not in req.files:
         return "No files uploaded", 400
     file = req.files['file']
@@ -131,6 +134,12 @@ def reduceImageSize():
     file.save(input_file_path)
 
     quality = req.form.get('quality', 85)
+    try:
+        quality=int(quality)
+        if(quality > 100 or quality <0):
+            return ValueError("Quality out of range");
+    except ValueError:
+        return "Invalid value. Please provide integer value between 0 and 100", 400
     print("quality is ", quality)
     message = compress_image(input_file_path, output_file_path, quality)
     return message
