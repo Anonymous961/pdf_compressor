@@ -129,9 +129,6 @@ def convert_to_doc():
     return jsonify(data)
 
 
-@app.route("/compressimage", methods=['POST'])
-def reduceimagesize():
-
 
 @app.route("/compressimage",methods=['POST'])
 def reduce_image_size():
@@ -145,7 +142,7 @@ def reduce_image_size():
     output_file_path = os.path.join("uploads", output_file)
     file.save(input_file_path)
 
-    quality = int(req.form.get('quality', 50))
+    # quality = int(req.form.get('quality', 50))
     quality = req.form.get('quality', 85)
     try:
         quality=int(quality)
