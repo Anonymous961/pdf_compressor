@@ -7,6 +7,13 @@ from pdf2docx import Converter
 from PIL import Image
 
 
+def upload_dir_check():
+    upload_dir = "uploads"
+
+    if not os.path.isdir(upload_dir):
+        os.mkdir(upload_dir)
+
+
 def compress_pdf(input_path, output_path, quality='ebook'):
     """
     Compresses a PDF file using Ghostscript.
@@ -83,7 +90,7 @@ def upload():
     file = req.files["file"]
     if file.filename == '':
         return "No file selected", 400
-
+    upload_dir_check()
     file.save("uploads/" + file.filename)
     return "File saved successfully!"
 
@@ -96,6 +103,7 @@ def upload_file():
     file = req.files['file']
     if file.filename == '':
         return "No file selected", 400
+    upload_dir_check()
     input_file_path = os.path.join("uploads", secure_filename(file.filename))
     output_file = "compressed_" + secure_filename(file.filename)
     output_file_path = os.path.join("uploads", output_file)
@@ -117,6 +125,7 @@ def convert_to_doc():
     file = req.files['file']
     if file.filename == '':
         return "No file selected", 400
+    upload_dir_check()
     input_file_path = os.path.join("uploads", secure_filename(file.filename))
     # print(file.filename)
     filename, _ = os.path.splitext(secure_filename(file.filename))
@@ -129,14 +138,14 @@ def convert_to_doc():
     return jsonify(data)
 
 
-
-@app.route("/compressimage",methods=['POST'])
+@app.route("/compressimage", methods=['POST'])
 def reduce_image_size():
     if 'file' not in req.files:
         return "No files uploaded", 400
     file = req.files['file']
     if file.filename == '':
         return "No file selected", 400
+    upload_dir_check()
     input_file_path = os.path.join("uploads", secure_filename(file.filename))
     output_file = "compressed_" + secure_filename(file.filename)
     output_file_path = os.path.join("uploads", output_file)
@@ -145,8 +154,8 @@ def reduce_image_size():
     # quality = int(req.form.get('quality', 50))
     quality = req.form.get('quality', 85)
     try:
-        quality=int(quality)
-        if(quality > 100 or quality <0):
+        quality = int(quality)
+        if (quality > 100 or quality < 0):
             return ValueError("Quality out of range");
     except ValueError:
         return "Invalid value. Please provide integer value between 0 and 100", 400
@@ -159,6 +168,7 @@ def reduce_image_size():
 # to get any file
 @app.route('/download/<filename>', methods=['GET'])
 def download_file(filename):
+    upload_dir_check()
     try:
         path = os.path.join("uploads", filename)
 
@@ -166,7 +176,7 @@ def download_file(filename):
         def removefile(response):
 
             try:
-                original_file="uploads/"+filename.split("_")[1]
+                original_file = "uploads/" + filename.split("_")[1]
                 # print(original_file)
                 os.remove(original_file)
                 os.remove(path)

@@ -1,6 +1,6 @@
 # Ignore Python virtual environment
 venv/
-uploads/
+uploads/*
 .venv/
 .venv
 
