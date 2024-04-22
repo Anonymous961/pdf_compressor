@@ -1,4 +1,4 @@
-from flask import Flask, request as req , send_file
+from flask import Flask, request as req, send_file, jsonify, after_this_request
 from markupsafe import escape
 from werkzeug.utils import secure_filename
 import os
@@ -75,6 +75,7 @@ def show_username(username):
         return "not proper method"
 
 
+# check file upload
 @app.route("/upload", methods=["POST"])
 def upload():
     if 'file' not in req.files:
@@ -87,6 +88,7 @@ def upload():
     return "File saved successfully!"
 
 
+# to compress file
 @app.route("/compresspdf", methods=['POST'])
 def upload_file():
     if 'file' not in req.files:
@@ -94,17 +96,21 @@ def upload_file():
     file = req.files['file']
     if file.filename == '':
         return "No file selected", 400
-    input_file_path = os.path.join("uploads",secure_filename(file.filename))
-    output_file_path = os.path.join("uploads","compressed_"+secure_filename(file.filename))
+    input_file_path = os.path.join("uploads", secure_filename(file.filename))
+    output_file = "compressed_" + secure_filename(file.filename)
+    output_file_path = os.path.join("uploads", output_file)
     file.save(input_file_path)
 
     quality = req.form.get('quality', 'screen')
     print("quality is ", quality)
-    message = compress_pdf(input_file_path , output_file_path, quality)
-    return message
+    message = compress_pdf(input_file_path, output_file_path, quality)
+    print(output_file_path)
+    print(output_file)
+    data = {"output_file": output_file, "message": message}
+    return jsonify(data)
 
 
-@app.route('/converttodoc',methods=["POST"])
+@app.route('/converttodoc', methods=["POST"])
 def convert_to_doc():
     if 'file' not in req.files:
         return "No files uploaded", 400
@@ -114,12 +120,17 @@ def convert_to_doc():
     input_file_path = os.path.join("uploads", secure_filename(file.filename))
     # print(file.filename)
     filename, _ = os.path.splitext(secure_filename(file.filename))
-    output_file_path = os.path.join("uploads", "doc_" + filename + ".doc")
+    output_file = "doc_" + filename + ".doc"
+    output_file_path = os.path.join("uploads", output_file)
     print(output_file_path)
     file.save(input_file_path)
-    message = convertpdftodoc(input_file_path,output_file_path)
-    return message
+    message = convertpdftodoc(input_file_path, output_file_path)
+    data = {"output_file": output_file, "message": message}
+    return jsonify(data)
 
+
+@app.route("/compressimage", methods=['POST'])
+def reduceimagesize():
 
 
 @app.route("/compressimage",methods=['POST'])
@@ -130,9 +141,11 @@ def reduce_image_size():
     if file.filename == '':
         return "No file selected", 400
     input_file_path = os.path.join("uploads", secure_filename(file.filename))
-    output_file_path = os.path.join("uploads", "compressed_" + secure_filename(file.filename))
+    output_file = "compressed_" + secure_filename(file.filename)
+    output_file_path = os.path.join("uploads", output_file)
     file.save(input_file_path)
 
+    quality = int(req.form.get('quality', 50))
     quality = req.form.get('quality', 85)
     try:
         quality=int(quality)
@@ -142,16 +155,32 @@ def reduce_image_size():
         return "Invalid value. Please provide integer value between 0 and 100", 400
     print("quality is ", quality)
     message = compress_image(input_file_path, output_file_path, quality)
-    return message
+    data = {"output_file": output_file, "message": message}
+    return jsonify(data)
 
 
+# to get any file
 @app.route('/download/<filename>', methods=['GET'])
 def download_file(filename):
     try:
-        return send_file(os.path.join("uploads", filename), as_attachment=True)
+        path = os.path.join("uploads", filename)
+
+        @after_this_request
+        def removefile(response):
+
+            try:
+                original_file="uploads/"+filename.split("_")[1]
+                # print(original_file)
+                os.remove(original_file)
+                os.remove(path)
+                print("after this working")
+            except Exception as error:
+                app.logger.error("Error removing or closing downloaded file handle")
+            return response
+
+        return send_file(path, as_attachment=True)
     except FileNotFoundError:
         return "File not found", 404
-
 
 
 if __name__ == '__main__':
