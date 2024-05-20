@@ -3,12 +3,11 @@ from markupsafe import escape
 from werkzeug.utils import secure_filename
 import os
 from utils.s3_helpers import upload_file_to_s3, delete_all_objects, get_files_from_s3
-from uuid import uuid4
 from utils.helpers import *
-
+from threading import Thread, Event
+import time
 
 app = Flask(__name__)
-
 
 @app.route('/')
 def hello_world():
@@ -137,8 +136,21 @@ def reduce_image_size():
     data = {"output_file": output_file, "message": message, "uploaded_file":image_filename}
     return jsonify(data)
 
+def delete_objects_periodically(interval_seconds):
+    while not stop_event.is_set():
+        delete_all_objects()
+        time.sleep(interval_seconds)
+
+# Define the interval for execution (in seconds)
+interval_seconds = 3600  # 1 hour
+
+# Create an Event to control the thread
+stop_event = Event()
+
+# Create and start the thread
+delete_objects_thread = Thread(target=delete_objects_periodically, args=(interval_seconds,))
+delete_objects_thread.start()
 
 if __name__ == '__main__':
-
 
     app.run()

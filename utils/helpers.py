@@ -3,8 +3,6 @@ from pdf2docx import Converter
 import subprocess
 from PIL import Image
 
-
-
 def upload_dir_check():
     upload_dir = "uploads"
 

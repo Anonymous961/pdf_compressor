@@ -32,6 +32,7 @@ def upload_file_to_s3(file_path):
     return filename
 
 def delete_all_objects():
+    print("Deleting all objects")
     bucket_name=os.environ['AWS_BUCKET_NAME']
 
     try:
