@@ -1,68 +1,10 @@
-from flask import Flask, request as req, send_file, jsonify, after_this_request
+from flask import Flask, request as req, send_file, jsonify, after_this_request, Response
 from markupsafe import escape
 from werkzeug.utils import secure_filename
 import os
-import subprocess
-from pdf2docx import Converter
-from PIL import Image
-
-
-def upload_dir_check():
-    upload_dir = "uploads"
-
-    if not os.path.isdir(upload_dir):
-        os.mkdir(upload_dir)
-
-
-def compress_pdf(input_path, output_path, quality='ebook'):
-    """
-    Compresses a PDF file using Ghostscript.
-
-    Parameters:
-        input_path (str): Path to the input PDF file.
-        output_path (str): Path to save the compressed PDF file.
-        quality (str): Quality level for compression.
-                      Possible values: 'screen', 'ebook', 'printer', 'prepress'.
-    """
-    args = [
-        "gs",
-        "-sDEVICE=pdfwrite",
-        f"-dCompatibilityLevel=1.4",
-        "-dPDFSETTINGS=/" + quality,
-        "-dNOPAUSE",
-        "-dQUIET",
-        "-dBATCH",
-        f"-sOutputFile={output_path}",
-        input_path
-    ]
-
-    subprocess.run(args)
-    return "file compressed successfully"
-
-
-def convertpdftodoc(pdf_file, docx_file):
-    cv = Converter(pdf_file)
-    cv.convert(docx_file)  # all pages by default
-    cv.close()
-    return "file converted successfully"
-
-
-def compress_image(input_path, output_path, quality=85):
-    """
-    Compresses an image and saves it to the output path.
-
-    Parameters:
-        input_path (str): Path to the input image file.
-        output_path (str): Path to save the compressed image.
-        quality (int): The quality of the compressed image (0-100).
-    """
-    try:
-        with Image.open(input_path) as img:
-            img.save(output_path, optimize=True, quality=quality)
-        return "image compressed successfully"
-    except Exception as e:
-        print(f"Error compressing image: {e}")
-        return "error compressing image"
+from utils.s3_helpers import upload_file_to_s3, delete_all_objects, get_files_from_s3
+from uuid import uuid4
+from utils.helpers import *
 
 
 app = Flask(__name__)
@@ -70,7 +12,6 @@ app = Flask(__name__)
 
 @app.route('/')
 def hello_world():
-    # print("hello")
     return {"message": "hello", "filename": "output_file_path"}
 
 
@@ -81,6 +22,13 @@ def show_username(username):
     else:
         return "not proper method"
 
+@app.route("/get/files")
+def get_files():
+    files, error = get_files_from_s3()
+    if files:
+        return jsonify(files)
+    else:
+        return jsonify({"error": error})
 
 # check file upload
 @app.route("/upload", methods=["POST"])
@@ -112,9 +60,16 @@ def upload_file():
     quality = req.form.get('quality', 'screen')
     print("quality is ", quality)
     message = compress_pdf(input_file_path, output_file_path, quality)
-    print(output_file_path)
-    print(output_file)
-    data = {"output_file": output_file, "message": message}
+    filename=upload_file_to_s3(output_file_path)
+    @after_this_request
+    def remove_file(response):
+        try:
+            os.remove(input_file_path)
+            os.remove(output_file_path)
+        except Exception as e:
+            app.logger.error(e)
+        return response
+    data = {"output_file": output_file, "message": message,"uploaded_file":filename}
     return jsonify(data)
 
 
@@ -127,14 +82,23 @@ def convert_to_doc():
         return "No file selected", 400
     upload_dir_check()
     input_file_path = os.path.join("uploads", secure_filename(file.filename))
-    # print(file.filename)
     filename, _ = os.path.splitext(secure_filename(file.filename))
     output_file = "doc_" + filename + ".doc"
     output_file_path = os.path.join("uploads", output_file)
-    print(output_file_path)
     file.save(input_file_path)
     message = convertpdftodoc(input_file_path, output_file_path)
-    data = {"output_file": output_file, "message": message}
+
+    s3_filename=upload_file_to_s3(output_file_path)
+    @after_this_request
+    def remove_file(response):
+        try:
+            os.remove(input_file_path)
+            os.remove(output_file_path)
+        except Exception as e:
+            app.logger.error(e)
+        return response
+
+    data = {"output_file": output_file, "message": message, "uplaoded_file":s3_filename}
     return jsonify(data)
 
 
@@ -161,34 +125,20 @@ def reduce_image_size():
         return "Invalid value. Please provide integer value between 0 and 100", 400
     print("quality is ", quality)
     message = compress_image(input_file_path, output_file_path, quality)
-    data = {"output_file": output_file, "message": message}
+    image_filename=upload_file_to_s3(output_file_path)
+    @after_this_request
+    def remove_file(response):
+        try:
+            os.remove(input_file_path)
+            os.remove(output_file_path)
+        except Exception as e:
+            print("Files not deleted")
+        return response
+    data = {"output_file": output_file, "message": message, "uploaded_file":image_filename}
     return jsonify(data)
 
 
-# to get any file
-@app.route('/download/<filename>', methods=['GET'])
-def download_file(filename):
-    upload_dir_check()
-    try:
-        path = os.path.join("uploads", filename)
-
-        @after_this_request
-        def removefile(response):
-
-            try:
-                original_file = "uploads/" + filename.split("_")[1]
-                # print(original_file)
-                os.remove(original_file)
-                os.remove(path)
-                print("after this working")
-            except Exception as error:
-                app.logger.error("Error removing or closing downloaded file handle")
-            return response
-
-        return send_file(path, as_attachment=True)
-    except FileNotFoundError:
-        return "File not found", 404
-
-
 if __name__ == '__main__':
+
+
     app.run()

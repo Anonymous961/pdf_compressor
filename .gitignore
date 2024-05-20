@@ -3,6 +3,7 @@ venv/
 uploads/*
 .venv/
 .venv
+.env
 
 # Ignore compiled Python files
 *.pyc
