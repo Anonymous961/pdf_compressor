@@ -9,6 +9,7 @@ import time
 
 app = Flask(__name__)
 
+
 @app.route('/')
 def hello_world():
     return {"message": "hello", "filename": "output_file_path"}
@@ -21,6 +22,7 @@ def show_username(username):
     else:
         return "not proper method"
 
+
 @app.route("/get/files")
 def get_files():
     files, error = get_files_from_s3()
@@ -28,6 +30,7 @@ def get_files():
         return jsonify(files)
     else:
         return jsonify({"error": error})
+
 
 # check file upload
 @app.route("/upload", methods=["POST"])
@@ -59,7 +62,8 @@ def upload_file():
     quality = req.form.get('quality', 'screen')
     print("quality is ", quality)
     message = compress_pdf(input_file_path, output_file_path, quality)
-    filename=upload_file_to_s3(output_file_path)
+    filename = upload_file_to_s3(output_file_path)
+
     @after_this_request
     def remove_file(response):
         try:
@@ -68,7 +72,8 @@ def upload_file():
         except Exception as e:
             app.logger.error(e)
         return response
-    data = {"output_file": output_file, "message": message,"uploaded_file":filename}
+
+    data = {"output_file": output_file, "message": message, "uploaded_file": filename}
     return jsonify(data)
 
 
@@ -87,7 +92,8 @@ def convert_to_doc():
     file.save(input_file_path)
     message = convertpdftodoc(input_file_path, output_file_path)
 
-    s3_filename=upload_file_to_s3(output_file_path)
+    s3_filename = upload_file_to_s3(output_file_path)
+
     @after_this_request
     def remove_file(response):
         try:
@@ -97,7 +103,7 @@ def convert_to_doc():
             app.logger.error(e)
         return response
 
-    data = {"output_file": output_file, "message": message, "uplaoded_file":s3_filename}
+    data = {"output_file": output_file, "message": message, "uploaded_file": s3_filename}
     return jsonify(data)
 
 
@@ -124,7 +130,8 @@ def reduce_image_size():
         return "Invalid value. Please provide integer value between 0 and 100", 400
     print("quality is ", quality)
     message = compress_image(input_file_path, output_file_path, quality)
-    image_filename=upload_file_to_s3(output_file_path)
+    image_filename = upload_file_to_s3(output_file_path)
+
     @after_this_request
     def remove_file(response):
         try:
@@ -133,13 +140,16 @@ def reduce_image_size():
         except Exception as e:
             print("Files not deleted")
         return response
-    data = {"output_file": output_file, "message": message, "uploaded_file":image_filename}
+
+    data = {"output_file": output_file, "message": message, "uploaded_file": image_filename}
     return jsonify(data)
+
 
 def delete_objects_periodically(interval_seconds):
     while not stop_event.is_set():
         delete_all_objects()
         time.sleep(interval_seconds)
+
 
 # Define the interval for execution (in seconds)
 interval_seconds = 3600  # 1 hour
@@ -152,5 +162,4 @@ delete_objects_thread = Thread(target=delete_objects_periodically, args=(interva
 delete_objects_thread.start()
 
 if __name__ == '__main__':
-
     app.run()
